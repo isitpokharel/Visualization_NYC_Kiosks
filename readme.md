@@ -19,3 +19,14 @@ Boundaries of Neighborhood Tabulation Areas as created by the NYC Department of 
 LinkNYC kiosk location data available at https://data.cityofnewyork.us/Social-Services/LinkNYC-Map/tgrn-h24f
 
 
+## How to USE
+
+You can compile a html using presentation.Rmd file or download the presentation.html file and view it on browser. 
+
+To compile using the rmd file , you will have to clone the entire repo and change the location specified in this part of the code. 
+
+link_nyc <- read.csv("/Users/ipokharel/Desktop/512_presentation/LinkNYC_Map.csv")
+shape_file_folder <- "/Users/ipokharel/Desktop/512_presentation/nynta2020_23b"
+setwd(shape_file_folder)
+setwd("/Users/ipokharel/Desktop/512_presentation")
+
