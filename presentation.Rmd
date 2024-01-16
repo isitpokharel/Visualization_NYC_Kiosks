@@ -1,0 +1,253 @@
+---
+title: "Visualizing NYC Connect Kiosks"
+author: "Isit Pokharel"
+date: "2023-12-15"
+output:
+  html_document:
+    code_folding: hide
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width = 10, fig.height=10,warning = FALSE, message = FALSE, echo = TRUE)
+
+```
+
+```{r}
+#install packages
+rm(list=ls())
+library(rgdal);library(leaflet);library(readxl);library(dplyr)
+library(rgeos);library(RColorBrewer)
+rm(list=ls())
+library(leaflet);
+library(mapview);library(sp);library(rgdal)
+library(htmltools);library(scales);library(leafpop)
+library(expss);library(tidyverse);#library(leaflet.mincharts)
+library(sf)
+library(expss)
+library(sf)
+library(htmltools)
+
+
+
+```
+
+
+```{r}
+link_nyc <- read.csv("/Users/ipokharel/Desktop/512_presentation/LinkNYC_Map.csv")
+
+shape_file_folder <- "/Users/ipokharel/Desktop/512_presentation/nynta2020_23b"
+setwd(shape_file_folder)
+nyc_shape_file <- readOGR(dsn=".",layer="geo_export_10e11d07-c5f6-41d1-802e-ff2fbc7f4826")   
+setwd("/Users/ipokharel/Desktop/512_presentation")
+
+```
+```{r}
+#count of linknyc by nta(neighborhood tabulation area)
+link_nyc$ntaname_lcase <- tolower(link_nyc$`Neighborhood.Tabulation.Area..NTA.`)
+nyc_shape_file$ntaname_lower <- tolower(nyc_shape_file@data$ntaname)
+
+count_by_nta <- link_nyc %>%
+  group_by( ntaname_lower = ntaname_lcase) %>% 
+  summarize(number_link_nyc = n())
+
+zero <- as.integer(0)
+nyc_shape_file <- merge(nyc_shape_file,count_by_nta, by = "ntaname_lower")
+nyc_shape_file$number_link_nyc <- coalesce(nyc_shape_file$number_link_nyc,zero)
+```
+
+# Data Visualization Presentation
+
+LinkNYC is an innovative communication network that has replaced traditional pay phones throughout all five boroughs. Each LinkNYC unit offers high-speed, complimentary public Wi-Fi, phone services, the ability to charge devices, and a tablet for accessing city services, maps, and navigation assistance.
+
+
+
+### Dot Distribution Map of LinkNYC kiosks locations in NYC
+
+```{r}
+#Dot Distribution Map of Link NYC locations in Five boroughs of NYC with Polygon Layer of Neighborhoods. 
+
+
+img_df <- st_as_sf(data.frame(x = as.numeric(c("-73.91547")), y = as.numeric(c("40.74472"))),
+                   coords = c("x", "y"),
+                   crs = 4326)
+images <- "/Users/ipokharel/Desktop/512_presentation/link_nyc.png"
+
+neighborhood_colors <- c("red", "blue")
+neighborhood_breaks <- c(-Inf, 0, Inf)
+neighborhood_labels <- c("Link NYCs Unavailable", "Link NYCs Present")
+nyc_shape_file$neighborhood_labels <- cut(nyc_shape_file$number_link_nyc, breaks = neighborhood_breaks, labels = neighborhood_labels)
+neighborhood_color_pallete <- neighborhood_colors
+neighborhood_polygon_colors <- setNames(neighborhood_color_pallete, neighborhood_color_pallete)
+neighborhood_pal <-colorFactor(palette = neighborhood_polygon_colors , domain = nyc_shape_file$neighborhood_labels)
+
+
+
+
+nyc_manhattan <-nyc_shape_file[nyc_shape_file$boro_name=="Manhattan",]
+nyc_queens <-nyc_shape_file[nyc_shape_file$boro_name=="Queens",]
+nyc_brooklyn <-nyc_shape_file[nyc_shape_file$boro_name=="Brooklyn",]
+nyc_staten_island <-nyc_shape_file[nyc_shape_file$boro_name=="Staten Island",]
+nyc_bronx <-nyc_shape_file[nyc_shape_file$boro_name=="Bronx",]
+
+
+
+
+
+
+nyc_map <- leaflet()%>%
+  setView(lng = -73.935242, lat = 40.730610, zoom = 13) %>%
+  addProviderTiles("CartoDB.VoyagerLabelsUnder") %>%
+  addPolygons(
+    data = nyc_manhattan,
+    fillOpacity = .2,
+    fillColor = ~neighborhood_pal(neighborhood_labels),
+    color = "black",
+    weight = 3,
+    label = ~ paste(ntaname, ", ", boro_name),
+    popup = ~paste("Neighborhood: ", ntaname, 
+               "<br>Number of Link NYC: ",number_link_nyc
+    ),    group = "Manhattan"
+      ) %>%
+  addPolygons(
+    data = nyc_queens,
+    fillOpacity = .2,
+    fillColor = ~neighborhood_pal(neighborhood_labels),
+    color = "black",
+    weight = 3,
+    label = ~ paste(ntaname, ", ", boro_name),
+    popup = ~paste("Neighborhood: ", ntaname, 
+               "<br>Number of Link NYC: ",number_link_nyc
+    ),
+    group = "Queens"
+      ) %>%
+  addPolygons(
+    data = nyc_brooklyn,
+    fillOpacity = .2,
+    fillColor = ~neighborhood_pal(neighborhood_labels),
+    color = "black",
+    weight = 3,
+    label = ~ paste(ntaname, ", ", boro_name),
+    popup = ~paste("Neighborhood: ", ntaname, 
+               "<br>Number of Link NYC: ",number_link_nyc
+    ),    group = "Brooklyn"
+      ) %>%
+  addPolygons(
+    data = nyc_staten_island,
+    fillOpacity = .2,
+    fillColor = ~neighborhood_pal(neighborhood_labels),
+    color = "black",
+    weight = 3,
+    label = ~ paste(ntaname, ", ", boro_name),
+    popup = ~paste("Neighborhood: ", ntaname, 
+               "<br>Number of Link NYC: ",number_link_nyc
+    ),    group = "Staten Island"
+      ) %>%
+    addPolygons(
+    data = nyc_bronx,
+    fillOpacity = .2,
+    fillColor = ~neighborhood_pal(neighborhood_labels),
+    color = "black",
+    weight = 3,
+    label = ~ paste(ntaname, ", ", boro_name),
+    popup = ~paste("Neighborhood: ", ntaname, 
+               "<br>Number of Link NYC: ",number_link_nyc
+    ),    group = "Bronx"
+      ) %>%
+  addCircleMarkers(data = link_nyc %>% filter(Borough == "Manhattan"),
+                 radius = 2,
+                 weight = 2,
+                 fillOpacity = 1,
+                 stroke = TRUE,
+                 fillColor = "blue",
+                 group = "Manhattan",
+                 label = ~paste("Street Address: ", `Street.Address`),
+                popup = ~paste("Street Address: ", `Street.Address`, 
+                               "<br>Installation Status: ",`Installation.Status`,
+                               "<br>Activation Complete: ",`Activation.Complete`,
+                               "<br>Installation Complete: ",`Installation.Complete`)
+
+    ) %>%  
+  addCircleMarkers(data = link_nyc %>% filter(Borough == "Bronx"),
+                 radius = 2,
+                 weight = 2,
+                 fillOpacity = 1,
+                 stroke = TRUE,
+                 fillColor = "blue",
+                 group = "Bronx",
+                 label = ~paste("Street Address: ", `Street.Address`),
+                popup = ~paste("Street Address: ", `Street.Address`, 
+                               "<br>Installation Status: ",`Installation.Status`,
+                               "<br>Activation Complete: ",`Activation.Complete`,
+                               "<br>Installation Complete: ",`Installation.Complete`)
+
+    ) %>% 
+  addCircleMarkers(data = link_nyc %>% filter(Borough == "Brooklyn"),
+                 radius = 2,
+                 weight = 2,
+                 fillOpacity = 1,
+                 stroke = TRUE,
+                 fillColor = "blue",
+                 group = "Brooklyn",
+                 label = ~paste("Street Address: ", `Street.Address`),
+                popup = ~paste("Street Address: ", `Street.Address`, 
+                               "<br>Installation Status: ",`Installation.Status`,
+                               "<br>Activation Complete: ",`Activation.Complete`,
+                               "<br>Installation Complete: ",`Installation.Complete`)
+
+    ) %>% 
+  addCircleMarkers(data = link_nyc %>% filter(Borough == "Queens"),
+                 radius = 2,
+                 weight = 2,
+                 fillOpacity = 1,
+                 stroke = TRUE,
+                 fillColor = "blue",
+                 group = "Queens",
+                 label = ~paste("Street Address: ", `Street.Address`),
+                popup = ~paste("Street Address: ", `Street.Address`, 
+                               "<br>Installation Status: ",`Installation.Status`,
+                               "<br>Activation Complete: ",`Activation.Complete`,
+                               "<br>Installation Complete: ",`Installation.Complete`)
+
+    ) %>% 
+  addCircleMarkers(data = link_nyc %>% filter(Borough == "Staten Island"),
+                 radius = 2,
+                 weight = 2,
+                 fillOpacity = 1,
+                 stroke = TRUE,
+                 fillColor = "blue",
+                 group = "Staten Island",
+                 label = ~paste("Street Address: ", `Street.Address`),
+                popup = ~paste("Street Address: ", `Street.Address`, 
+                               "<br>Installation Status: ",`Installation.Status`,
+                               "<br>Activation Complete: ",`Activation.Complete`,
+                               "<br>Installation Complete: ",`Installation.Complete`)
+
+    ) %>% 
+   addMarkers(data = img_df, group = "img_df", 
+            label = "Nearest Link NYC from my apartment") %>%
+   addPopupImages(images, group = "img_df") %>%
+  addLayersControl( 
+    overlayGroups = c("Manhattan","Brooklyn","Queens","Bronx", "Staten Island"),
+    #\overlayGroups = c("Link NYC"),
+    options = layersControlOptions(collapsed = TRUE)) %>%
+    addLegend(position="bottomleft",
+             title="Link Nyc Availability",
+             labels=nyc_shape_file$neighborhood_labels,
+             pal = neighborhood_pal,
+             opacity = 0.2,
+             values=na.omit(nyc_shape_file$neighborhood_labels) 
+             )
+
+nyc_map  %>%  hideGroup(c("Brooklyn","Queens","Bronx", "Staten Island"))
+
+#ntacode shapefile
+```
+
+
+Data Sources: 
+
+Boundaries of Neighborhood Tabulation Areas as created by the NYC Department of City Planning using whole census tracts from the 2010 Census as building blocks. These aggregations of census tracts are subsets of New York City's 55 Public Use Microdata Areas (PUMAs) available at https://data.cityofnewyork.us/City-Government/NTA-map/d3qk-pfyz.
+
+LinkNYC kiosk location data available at https://data.cityofnewyork.us/Social-Services/LinkNYC-Map/tgrn-h24f
+
